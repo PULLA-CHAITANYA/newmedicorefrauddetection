@@ -28,26 +28,32 @@ function normalize(doc) {
       if (["ClaimID", "BeneID", "DiagnosisGroupCode", "Gender"].includes(k)) {
         d[k] = ""; // keep as empty string for required string fields
       } else {
-        d[k] = 0; // default to No for chronic conditions and optional fields
+        d[k] = 0; // default numeric/boolean-like fields to 0
       }
     }
   }
 
+  // normalize chronic fields
   CHRONIC_FIELDS.forEach((k) => {
     if (["1", 1, true, "Yes"].includes(d[k])) d[k] = 1;
     else if (["0", 0, false, "No"].includes(d[k])) d[k] = 0;
-    else if (d[k] == null) d[k] = 0; // default to 0 if nothing set
+    else d[k] = 0; // fallback
   });
 
+  // normalize gender
   if (d.Gender) {
     const g = String(d.Gender).toUpperCase();
     if (["M", "MALE", "1"].includes(g)) d.Gender = "M";
     else if (["F", "FEMALE", "2"].includes(g)) d.Gender = "F";
+    else d.Gender = "";
   }
 
-  if (d.InscClaimAmtReimbursed != null) {
+  // normalize numeric reimbursement
+  if (d.InscClaimAmtReimbursed !== "" && d.InscClaimAmtReimbursed != null) {
     const n = Number(d.InscClaimAmtReimbursed);
-    if (!Number.isNaN(n)) d.InscClaimAmtReimbursed = n;
+    d.InscClaimAmtReimbursed = Number.isNaN(n) ? 0 : n;
+  } else {
+    d.InscClaimAmtReimbursed = 0;
   }
 
   return d;
@@ -79,8 +85,8 @@ export default function ClaimForm() {
 
   function validateClient(d) {
     const miss = [];
-    if (!d.ClaimID) miss.push("ClaimID");
-    if (!d.BeneID) miss.push("BeneID");
+    if (!d.ClaimID || d.ClaimID.trim() === "") miss.push("ClaimID");
+    if (!d.BeneID || d.BeneID.trim() === "") miss.push("BeneID");
     return miss.length ? `Missing required: ${miss.join(", ")}` : null;
   }
 
@@ -179,9 +185,7 @@ export default function ClaimForm() {
             <div className="section">
               <div className="section-head">
                 <h4>Basics</h4>
-                <p className="muted small">
-                  Required fields are marked with *
-                </p>
+                <p className="muted small">Required fields are marked with *</p>
               </div>
               <div className="grid-2">
                 <div className="field">
