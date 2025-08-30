@@ -11,7 +11,7 @@ const CHRONIC_FIELDS = [
   "ChronicCond_Depression",
   "ChronicCond_Diabetes",
   "ChronicCond_IschemicHeart",
-  "ChronicCond_Osteoporasis",
+  "ChronicCond_Osteoporosis",
   "ChronicCond_rheumatoidarthritis",
   "ChronicCond_stroke",
 ];
