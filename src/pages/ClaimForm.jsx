@@ -20,24 +20,36 @@ const DATE_FIELDS = ["ClaimStartDt", "ClaimEndDt", "DOB", "AdmissionDt"];
 
 function normalize(doc) {
   const d = { ...doc };
+
   for (const k in d) {
     if (typeof d[k] === "string") d[k] = d[k].trim();
-    if (d[k] === "") d[k] = null;
+
+    if (d[k] === "") {
+      if (["ClaimID", "BeneID", "DiagnosisGroupCode", "Gender"].includes(k)) {
+        d[k] = ""; // keep as empty string for required string fields
+      } else {
+        d[k] = 0; // default to No for chronic conditions and optional fields
+      }
+    }
   }
+
   CHRONIC_FIELDS.forEach((k) => {
     if (["1", 1, true, "Yes"].includes(d[k])) d[k] = 1;
     else if (["0", 0, false, "No"].includes(d[k])) d[k] = 0;
-    else if (d[k] == null) d[k] = null;
+    else if (d[k] == null) d[k] = 0; // default to 0 if nothing set
   });
+
   if (d.Gender) {
     const g = String(d.Gender).toUpperCase();
     if (["M", "MALE", "1"].includes(g)) d.Gender = "M";
     else if (["F", "FEMALE", "2"].includes(g)) d.Gender = "F";
   }
+
   if (d.InscClaimAmtReimbursed != null) {
     const n = Number(d.InscClaimAmtReimbursed);
     if (!Number.isNaN(n)) d.InscClaimAmtReimbursed = n;
   }
+
   return d;
 }
 
@@ -62,7 +74,8 @@ export default function ClaimForm() {
   const [csvRows, setCsvRows] = useState([]);
   const [csvInfo, setCsvInfo] = useState({ rows: 0, filename: "" });
 
-  const onChange = (e) => setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
+  const onChange = (e) =>
+    setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
 
   function validateClient(d) {
     const miss = [];
@@ -81,7 +94,13 @@ export default function ClaimForm() {
     try {
       await api.post("/claims/submit", payload);
       setMsg(`✅ Submitted claim ${payload.ClaimID}`);
-      setForm((s) => ({ ...s, ClaimID: "", BeneID: "", InscClaimAmtReimbursed: "", DiagnosisGroupCode: "" }));
+      setForm((s) => ({
+        ...s,
+        ClaimID: "",
+        BeneID: "",
+        InscClaimAmtReimbursed: "",
+        DiagnosisGroupCode: "",
+      }));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e2) {
       setMsg(`❌ ${e2?.response?.data?.error || e2.message}`);
@@ -138,8 +157,18 @@ export default function ClaimForm() {
           <div className="muted">Single claim or CSV bulk upload.</div>
         </div>
         <div className="btn-group">
-          <button className={`btn ${tab === "single" ? "" : "btn-ghost"}`} onClick={() => setTab("single")}>Single</button>
-          <button className={`btn ${tab === "csv" ? "" : "btn-ghost"}`} onClick={() => setTab("csv")}>CSV</button>
+          <button
+            className={`btn ${tab === "single" ? "" : "btn-ghost"}`}
+            onClick={() => setTab("single")}
+          >
+            Single
+          </button>
+          <button
+            className={`btn ${tab === "csv" ? "" : "btn-ghost"}`}
+            onClick={() => setTab("csv")}
+          >
+            CSV
+          </button>
         </div>
       </div>
 
@@ -150,26 +179,55 @@ export default function ClaimForm() {
             <div className="section">
               <div className="section-head">
                 <h4>Basics</h4>
-                <p className="muted small">Required fields are marked with *</p>
+                <p className="muted small">
+                  Required fields are marked with *
+                </p>
               </div>
               <div className="grid-2">
                 <div className="field">
-                  <label>ClaimID <span className="req">*</span></label>
-                  <input className="control" name="ClaimID" value={form.ClaimID} onChange={onChange} placeholder="e.g. CLM0001" />
+                  <label>
+                    ClaimID <span className="req">*</span>
+                  </label>
+                  <input
+                    className="control"
+                    name="ClaimID"
+                    value={form.ClaimID}
+                    onChange={onChange}
+                    placeholder="e.g. CLM0001"
+                  />
                   <div className="hint">Unique claim identifier</div>
                 </div>
                 <div className="field">
-                  <label>BeneID <span className="req">*</span></label>
-                  <input className="control" name="BeneID" value={form.BeneID} onChange={onChange} placeholder="e.g. BEN0001" />
+                  <label>
+                    BeneID <span className="req">*</span>
+                  </label>
+                  <input
+                    className="control"
+                    name="BeneID"
+                    value={form.BeneID}
+                    onChange={onChange}
+                    placeholder="e.g. BEN0001"
+                  />
                   <div className="hint">Beneficiary ID</div>
                 </div>
                 <div className="field">
                   <label>DiagnosisGroupCode</label>
-                  <input className="control" name="DiagnosisGroupCode" value={form.DiagnosisGroupCode || ""} onChange={onChange} placeholder="e.g. D077" />
+                  <input
+                    className="control"
+                    name="DiagnosisGroupCode"
+                    value={form.DiagnosisGroupCode || ""}
+                    onChange={onChange}
+                    placeholder="e.g. D077"
+                  />
                 </div>
                 <div className="field">
                   <label>Gender</label>
-                  <select className="control" name="Gender" value={form.Gender || ""} onChange={onChange}>
+                  <select
+                    className="control"
+                    name="Gender"
+                    value={form.Gender || ""}
+                    onChange={onChange}
+                  >
                     <option value="">— Select —</option>
                     <option value="M">Male (M)</option>
                     <option value="F">Female (F)</option>
@@ -177,7 +235,14 @@ export default function ClaimForm() {
                 </div>
                 <div className="field">
                   <label>InscClaimAmtReimbursed</label>
-                  <input type="number" className="control" name="InscClaimAmtReimbursed" value={form.InscClaimAmtReimbursed || ""} onChange={onChange} placeholder="e.g. 12345" />
+                  <input
+                    type="number"
+                    className="control"
+                    name="InscClaimAmtReimbursed"
+                    value={form.InscClaimAmtReimbursed || ""}
+                    onChange={onChange}
+                    placeholder="e.g. 12345"
+                  />
                   <div className="hint">Amount requested (numeric)</div>
                 </div>
               </div>
@@ -185,12 +250,20 @@ export default function ClaimForm() {
 
             {/* DATES */}
             <div className="section">
-              <div className="section-head"><h4>Dates</h4></div>
+              <div className="section-head">
+                <h4>Dates</h4>
+              </div>
               <div className="grid-2">
                 {DATE_FIELDS.map((k) => (
                   <div key={k} className="field">
                     <label>{k}</label>
-                    <input type="date" className="control" name={k} value={form[k] || ""} onChange={onChange} />
+                    <input
+                      type="date"
+                      className="control"
+                      name={k}
+                      value={form[k] || ""}
+                      onChange={onChange}
+                    />
                   </div>
                 ))}
               </div>
@@ -198,12 +271,19 @@ export default function ClaimForm() {
 
             {/* CHRONIC */}
             <div className="section">
-              <div className="section-head"><h4>Chronic Conditions</h4></div>
+              <div className="section-head">
+                <h4>Chronic Conditions</h4>
+              </div>
               <div className="grid-2">
                 {CHRONIC_FIELDS.map((k) => (
                   <div key={k} className="field">
                     <label>{k}</label>
-                    <select className="control" name={k} value={form[k] || ""} onChange={onChange}>
+                    <select
+                      className="control"
+                      name={k}
+                      value={form[k] || ""}
+                      onChange={onChange}
+                    >
                       <option value="">— Select —</option>
                       <option value="1">Yes (1)</option>
                       <option value="0">No (0)</option>
@@ -217,15 +297,24 @@ export default function ClaimForm() {
               <div className="muted small">
                 Provider is set server-side. <b>Required:</b> ClaimID, BeneID.
               </div>
-              <button className="btn btn-primary" disabled={busy}>Submit</button>
+              <button className="btn btn-primary" disabled={busy}>
+                Submit
+              </button>
             </div>
           </form>
         ) : (
           <div className="section">
-            <div className="section-head"><h4>CSV Upload</h4></div>
-            <input type="file" accept=".csv" onChange={(e) => handleCsv(e.target.files?.[0])} />
+            <div className="section-head">
+              <h4>CSV Upload</h4>
+            </div>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => handleCsv(e.target.files?.[0])}
+            />
             <div className="hint" style={{ marginTop: 6 }}>
-              CSV headers: ClaimID,BeneID,ClaimStartDt,ClaimEndDt,DOB,AdmissionDt,InscClaimAmtReimbursed,DiagnosisGroupCode,Gender,ChronicCond_*
+              CSV headers:
+              ClaimID,BeneID,ClaimStartDt,ClaimEndDt,DOB,AdmissionDt,InscClaimAmtReimbursed,DiagnosisGroupCode,Gender,ChronicCond_*
             </div>
             {csvInfo.rows > 0 && (
               <div className="pill pill-info" style={{ marginTop: 10 }}>
@@ -234,7 +323,11 @@ export default function ClaimForm() {
             )}
             <div className="footer-bar" style={{ marginTop: 16 }}>
               <div />
-              <button className="btn btn-primary" disabled={busy || !csvRows.length} onClick={submitCsv}>
+              <button
+                className="btn btn-primary"
+                disabled={busy || !csvRows.length}
+                onClick={submitCsv}
+              >
                 Upload
               </button>
             </div>
@@ -243,7 +336,12 @@ export default function ClaimForm() {
       </div>
 
       {msg && (
-        <div style={{ marginTop: 12 }} className={msg.startsWith("✅") ? "pill pill-good" : "pill pill-danger"}>
+        <div
+          style={{ marginTop: 12 }}
+          className={
+            msg.startsWith("✅") ? "pill pill-good" : "pill pill-danger"
+          }
+        >
           {msg}
         </div>
       )}
