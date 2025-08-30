@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    branches:
+    branches
       - main
 
 jobs:
@@ -55,7 +55,8 @@ jobs:
       - name: Close Pull Request
         id: closepullrequest
         uses: Azure/static-web-apps-deploy@v1
-        with:
+        with: 
           action: "close"
+
 
 
